@@ -30,6 +30,85 @@ namespace fc {
     typedef fc::sha256                  blind_signature;
 
     /**
+     *  @class ec_point
+     *  @brief contains the representation of a point on an elliptic curve, only supports 256 bit for now
+     */
+    static constexpr uint16_t r1_curve = NID_X9_62_prime256v1;
+    static constexpr uint16_t k1_curve = NID_secp256k1;
+
+    template <uint16_t CurveType>
+    class ec_point {
+       public:
+         static constexpr uint64_t r1_curve = NID_X9_62_prime256v1;
+         static constexpr uint64_t k1_curve = NID_secp256k1;
+
+         ec_point() = default;
+
+         ec_point(const ec_point& p) {
+            FC_ASSERT(EC_POINT_copy(get_point(), p.get_point()));
+         }
+
+         template <typename BigNum>
+         ec_point(BigNum&& x, int y) {
+            EC_POINT_set_compressed_coordinates_GFp(get_group(), get_point(), x.get(), y, nullptr);
+         }
+
+         template <typename BigNum>
+         ec_point(BigNum&& x, BigNum&& y) {
+            EC_POINT_set_affine_coordinates_GFp(get_group(), get_point(), x.get(), y.get(), nullptr);
+         }
+
+         bool valid()const { return EC_POINT_is_on_curve(get_group(), get_point(), nullptr); }
+
+         operator EC_POINT*() { return get_point(); }
+         operator const EC_POINT*() { return get_point(); }
+         EC_POINT* data() { return get_point(); }
+         const EC_POINT* data()const { return get_point(); }
+
+         int64_t to_bin(uint8_t* buff, uint32_t len)const {
+            if (len < 64)
+               return -1;
+            static bigint x;
+            static bigint y;
+            EC_POINT_get_affine_coordinates_GFp(get_group(), get_point(), x.get(), y.get(), nullptr);
+            BN_bn2bin(x.get(), buff);
+            BN_bn2bin(y.get(), buff+32);
+            std::cout << "X: ";
+            BN_print_fp(stdout, x.get());
+            std::cout << " Y: ";
+            BN_print_fp(stdout, y.get());
+            std::cout << "\n";
+            return 64;
+         }
+
+         ec_point mult( const bigint& s)const {
+            ec_point r;
+            FC_ASSERT(EC_POINT_mul(get_group(), r.get_point(), nullptr, get_point(), s.get(), nullptr));
+            return r;
+         }
+
+         ec_point add(const ec_point& p)const {
+            ec_point r;
+            FC_ASSERT(EC_POINT_add(get_group(), r.get_point(), get_point(), p.get_point(), nullptr));
+
+            return r;
+         }
+
+         const ec_group& get_group()const {
+             static const ec_group& group = EC_GROUP_new_by_curve_name(CurveType);
+             return group;
+         }
+
+         EC_POINT* get_point() { return (EC_POINT*)(_point.data()); }
+         const EC_POINT* get_point()const { return (const EC_POINT*)(_point.data()); }
+         uint16_t get_curve()const { return CurveType; }
+         alignas(64) std::array<uint8_t, 64> _point;
+    };
+
+    using r1_ec_point = ec_point<r1_curve>;
+    using k1_ec_point = ec_point<k1_curve>;
+
+    /**
      *  @class public_key
      *  @brief contains only the public point of an elliptic curve key.
      */
@@ -271,6 +350,7 @@ namespace fc {
 } // namespace fc
 #include <fc/reflect/reflect.hpp>
 
+FC_REFLECT_TEMPLATE( (uint16_t C), fc::ecc::ec_point<C>, (_point) )
 FC_REFLECT_TYPENAME( fc::ecc::private_key )
 FC_REFLECT_TYPENAME( fc::ecc::public_key )
 FC_REFLECT( fc::ecc::range_proof_info, (exp)(mantissa)(min_value)(max_value) )

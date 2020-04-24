@@ -7,6 +7,7 @@
 #include <fc/fwd.hpp>
 #include <fc/array.hpp>
 #include <fc/io/raw_fwd.hpp>
+#include <openssl/ec.h>
 
 namespace fc {
 

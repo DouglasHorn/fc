@@ -14,11 +14,11 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 #endif
 
-/** 
+/**
  * @file openssl.hpp
  * Provides common utility calls for wrapping openssl c api.
  */
-namespace fc 
+namespace fc
 {
   class path;
 
